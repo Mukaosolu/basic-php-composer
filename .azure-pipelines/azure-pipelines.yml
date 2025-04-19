@@ -1,0 +1,40 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  phpVersion: '8.1'
+
+steps:
+  - checkout: self
+
+  - task: UsePHPVersion@0
+    inputs:
+      version: '$(phpVersion)'
+    displayName: 'Set PHP version'
+
+  - script: |
+      composer install --no-interaction --prefer-dist
+    displayName: 'Install Composer dependencies'
+
+  - script: |
+      ./vendor/bin/phpunit --configuration phpunit.xml
+    displayName: 'Run PHPUnit tests'
+
+  - task: CopyFiles@2
+    inputs:
+      SourceFolder: '$(Build.SourcesDirectory)'
+      Contents: '**/*'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)'
+    displayName: 'Copy files to artifact staging'
+
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
+    displayName: 'Publish build artifacts'
