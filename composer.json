@@ -2,6 +2,7 @@
     "name": "mukaosolu/basic-php-composer",
     "description": "A simple PHP app with Carbon and PHPUnit, CI-ready",
     "require": {
+      "php": "^8.2",  
       "nesbot/carbon": "^3.9"
     },
     "autoload": {
@@ -18,3 +19,4 @@
     "minimum-stability": "stable",
     "license": "MIT"
   }
+  
