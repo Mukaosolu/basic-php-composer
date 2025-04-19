@@ -7,24 +7,28 @@ pool:
   vmImage: 'ubuntu-latest'
 
 variables:
-  phpVersion: '8.1'
+  phpVersion: '8.2'  # Update to PHP 8.2 or higher
 
 steps:
   - checkout: self
 
+  # Install PHP 8.2 and necessary extensions
   - script: |
       sudo apt-get update
       sudo apt-get install -y php$(phpVersion) php-cli php-mbstring php-xml php-zip php-bcmath php-intl php-curl
     displayName: 'Install PHP $(phpVersion) and extensions'
 
+  # Install Composer dependencies
   - script: |
       composer install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
+  # Run PHPUnit tests
   - script: |
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
+  # Copy files to artifact staging
   - task: CopyFiles@2
     inputs:
       SourceFolder: '$(Build.SourcesDirectory)'
@@ -32,6 +36,7 @@ steps:
       TargetFolder: '$(Build.ArtifactStagingDirectory)'
     displayName: 'Copy files to artifact staging'
 
+  # Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
