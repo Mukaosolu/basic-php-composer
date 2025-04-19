@@ -12,10 +12,10 @@ variables:
 steps:
   - checkout: self
 
-  - task: UsePHPVersion@0
-    inputs:
-      version: '$(phpVersion)'
-    displayName: 'Set PHP version'
+  - script: |
+      sudo apt-get update
+      sudo apt-get install -y php$(phpVersion) php-cli php-mbstring php-xml php-zip php-bcmath php-intl php-curl
+    displayName: 'Install PHP $(phpVersion) and extensions'
 
   - script: |
       composer install --no-interaction --prefer-dist
