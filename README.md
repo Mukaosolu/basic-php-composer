@@ -1,6 +1,5 @@
 [![Build Status](https://dev.azure.com/mukaosoluchukwuonwe1/php-ci-pipeline/_apis/build/status%2FMukaosolu.basic-php-composer?branchName=main)](https://dev.azure.com/mukaosoluchukwuonwe1/php-ci-pipeline/_build/latest?definitionId=3&branchName=main)
 
-
 page_type: sample
 languages:chat
 - php
