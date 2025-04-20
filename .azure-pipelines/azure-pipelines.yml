@@ -17,21 +17,23 @@ steps:
       sudo add-apt-repository ppa:ondrej/php -y
       sudo apt-get update
       sudo apt-get install -y php8.2 php8.2-cli php8.2-mbstring php8.2-xml php8.2-zip php8.2-bcmath php8.2-intl php8.2-curl
-      sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 1
-      sudo update-alternatives --set php /usr/bin/php8.2
+      sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 100
+      sudo update-alternatives --install /usr/bin/php-config php-config /usr/bin/php-config8.2 100
+      sudo update-alternatives --install /usr/bin/phpize phpize /usr/bin/phpize8.2 100
       php -v
-    displayName: 'Install PHP 8.2 and extensions'
+    displayName: 'Install and switch to PHP 8.2'
 
   # Install Composer
   - script: |
       curl -sS https://getcomposer.org/installer | php
       sudo mv composer.phar /usr/local/bin/composer
-      composer --version
+      php /usr/local/bin/composer --version
     displayName: 'Install Composer'
 
-  # Install Composer dependencies
+  # Install Composer dependencies using PHP 8.2
   - script: |
-      composer install --no-interaction --prefer-dist
+      php -v
+      php /usr/local/bin/composer install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
   # Run PHPUnit tests
