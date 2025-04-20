@@ -12,6 +12,7 @@ variables:
 steps:
   - checkout: self
 
+  # Install PHP 8.2 and required extensions
   - script: |
       sudo add-apt-repository ppa:ondrej/php -y
       sudo apt-get update
@@ -20,14 +21,17 @@ steps:
       php -v
     displayName: 'Install PHP ${phpVersion} and extensions'
 
+  # Install Composer dependencies
   - script: |
       composer install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
+  # Run PHPUnit tests
   - script: |
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
+  # Copy files to artifact staging directory
   - task: CopyFiles@2
     inputs:
       SourceFolder: '$(Build.SourcesDirectory)'
@@ -35,9 +39,29 @@ steps:
       TargetFolder: '$(Build.ArtifactStagingDirectory)'
     displayName: 'Copy files to artifact staging'
 
+  # Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
       ArtifactName: 'drop'
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
+
+# CD Step: Download build artifacts
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: 'drop'  # Name of the artifact we published earlier
+      targetPath: '$(Pipeline.Workspace)/drop'  # Path to where the artifact will be downloaded
+    displayName: 'Download Build Artifact'
+
+# CD Step: Deploy to Linux VM using SSH
+  - task: SSH@0
+    inputs:
+      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
+      runOptions: 'commands'
+      commands: |
+       cd /var/www/html
+       rm -rf *
+       cp -r $(Pipeline.Workspace)/drop/* /var/www/html/
+       sudo systemctl restart apache2  # Restart Apache to apply changes
+    displayName: 'Deploy to Linux VM and restart Apache'
