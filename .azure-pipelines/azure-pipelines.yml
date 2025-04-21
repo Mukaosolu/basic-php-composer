@@ -47,7 +47,7 @@ steps:
       zip -r myapp.zip . -x "*.git*" "*.zip"
       mv myapp.zip $(Build.ArtifactStagingDirectory)/
       # Include the deploy script
-      cp deploy-linux.sh $(Build.ArtifactStagingDirectory)/
+      cp deploy-Linux.sh $(Build.ArtifactStagingDirectory)/
     displayName: 'Package app and deploy script'
 
   # Publish build artifacts
