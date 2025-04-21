@@ -41,13 +41,14 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # Copy files to artifact staging directory
-  - task: CopyFiles@2
-    inputs:
-      SourceFolder: '$(Build.SourcesDirectory)'
-      Contents: '**/*'
-      TargetFolder: '$(Build.ArtifactStagingDirectory)'
-    displayName: 'Copy files to artifact staging'
+  # Package app and deployment script
+  - script: |
+      # Create a zip file of the app excluding git and existing zip files
+      zip -r myapp.zip . -x "*.git*" "*.zip"
+      mv myapp.zip $(Build.ArtifactStagingDirectory)/
+      # Include the deploy script
+      cp deploy-linux.sh $(Build.ArtifactStagingDirectory)/
+    displayName: 'Package app and deploy script'
 
   # Publish build artifacts
   - task: PublishBuildArtifacts@1
@@ -56,3 +57,31 @@ steps:
       ArtifactName: 'drop'
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
+
+  # Download build artifact for deployment
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: 'drop'
+      targetPath: '$(Pipeline.Workspace)/drop'
+    displayName: 'Download Build Artifact'
+
+  # Deploy to Linux VM using SSH
+  - task: SSH@0
+    inputs:
+      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
+      runOptions: 'commands'
+      commands: |
+        # Stop Apache
+        sudo systemctl stop apache2
+        # Clean existing files and unzip new ones
+        sudo rm -rf /var/www/html/*
+        unzip -o $(Pipeline.Workspace)/drop/myapp.zip -d /var/www/html/
+        # Restart Apache
+        sudo systemctl start apache2
+        # Run a smoke test to verify deployment
+        curl -I http://localhost | grep "200 OK" || {
+          echo "❌ Smoke test failed"
+          exit 1
+        }
+        echo "✅ Deployment complete."
+    displayName: 'Deploy to Linux VM and restart Apache'
