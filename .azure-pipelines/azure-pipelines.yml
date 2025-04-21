@@ -56,21 +56,3 @@ steps:
       ArtifactName: 'drop'
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
-
-  # CD Step: Download build artifacts
-  - task: DownloadPipelineArtifact@2
-    inputs:
-      artifactName: 'drop'  # Name of the artifact we published earlier
-      targetPath: '$(Pipeline.Workspace)/drop'  # Path to where the artifact will be downloaded
-    displayName: 'Download Build Artifact'
-
-  # CD Step: Deploy to Linux VM using SSH
-  - task: SSH@0
-    inputs:
-      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
-      runOptions: 'commands'
-      commands: |
-        sudo rm -rf /var/www/html/*
-        sudo cp -r $(Pipeline.Workspace)/drop/* /var/www/html/
-        sudo systemctl restart apache2
-    displayName: 'Deploy to Linux VM and restart Apache'
