@@ -50,6 +50,11 @@ steps:
       cp deploy-Linux.sh $(Build.ArtifactStagingDirectory)/
     displayName: 'Package app and deploy script'
 
+  # Check contents of Artifact Staging Directory
+  - script: |
+      ls -lh $(Build.ArtifactStagingDirectory)
+    displayName: 'Check contents of Artifact Staging Directory'
+
   # Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
@@ -64,9 +69,12 @@ steps:
       artifactName: 'drop'
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
-    
-    
-    
+
+  # Check downloaded build artifacts
+  - script: |
+      ls -lh $(Pipeline.Workspace)/drop
+    displayName: 'Check downloaded artifacts'
+
   # Upload build artifacts to the Linux VM
   - task: CopyFilesOverSSH@0
     inputs:
@@ -76,7 +84,15 @@ steps:
       targetFolder: '/tmp/deploy'
     displayName: 'Copy build artifacts to Linux VM'
 
-    
+  # Verify files on the Linux VM
+  - task: SSH@0
+    inputs:
+      sshEndpoint: 'Linux-vm-ssh'
+      runOptions: 'inline'
+      inline: |
+        echo "Checking contents of /tmp/deploy:"
+        ls -lh /tmp/deploy
+    displayName: 'Verify files on Linux VM'
 
   # Deploy to Linux VM using SSH
   - task: SSH@0
