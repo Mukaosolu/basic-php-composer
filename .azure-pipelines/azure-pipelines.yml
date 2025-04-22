@@ -64,6 +64,19 @@ steps:
       artifactName: 'drop'
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
+    
+    
+    
+  # Upload build artifacts to the Linux VM
+  - task: CopyFilesOverSSH@0
+    inputs:
+      sshEndpoint: 'Linux-vm-ssh'
+      sourceFolder: '$(Pipeline.Workspace)/drop'
+      contents: '**'
+      targetFolder: '/tmp/deploy'
+    displayName: 'Copy build artifacts to Linux VM'
+
+    
 
   # Deploy to Linux VM using SSH
   - task: SSH@0
@@ -75,7 +88,7 @@ steps:
         sudo systemctl stop apache2
         # Clean existing files and unzip new ones
         sudo rm -rf /var/www/html/*
-        unzip -o $(Pipeline.Workspace)/drop/myapp.zip -d /var/www/html/
+        unzip -o /tmp/deploy/myapp.zip -d /var/www/html/
         # Restart Apache
         sudo systemctl start apache2
         # Run a smoke test to verify deployment
