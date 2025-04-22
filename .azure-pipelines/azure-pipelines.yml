@@ -94,7 +94,7 @@ steps:
         ls -lh /tmp/deploy
     displayName: 'Verify files on Linux VM'
 
-  # Deploy to Linux VM using SSH
+# Deploy to Linux VM using SSH
   - task: SSH@0
     inputs:
      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
@@ -123,5 +123,4 @@ steps:
       }
       echo "✅ Deployment complete."
     displayName: 'Deploy to Linux VM and restart Apache'
-
 
