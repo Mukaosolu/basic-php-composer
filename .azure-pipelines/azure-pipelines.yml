@@ -97,20 +97,29 @@ steps:
   # Deploy to Linux VM using SSH
   - task: SSH@0
     inputs:
-      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
-      runOptions: 'commands'
-      commands: |
-        # Stop Apache
-        sudo systemctl stop apache2
-        # Clean existing files and unzip new ones
+     sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
+     runOptions: 'commands'
+     commands: |
+      # Stop Apache
+      sudo systemctl stop apache2
+      # Check if myapp.zip exists
+      echo "Checking contents of /tmp/deploy:"
+      ls -lh /tmp/deploy
+      # Clean existing files and unzip new ones if the file is there
+      if [ -f /tmp/deploy/myapp.zip ]; then
         sudo rm -rf /var/www/html/*
         unzip -o /tmp/deploy/myapp.zip -d /var/www/html/
-        # Restart Apache
-        sudo systemctl start apache2
-        # Run a smoke test to verify deployment
-        curl -I http://localhost | grep "200 OK" || {
-          echo "❌ Smoke test failed"
-          exit 1
-        }
-        echo "✅ Deployment complete."
+      else
+        echo "❌ myapp.zip not found at /tmp/deploy/"
+        exit 1
+      fi
+      # Restart Apache
+      sudo systemctl start apache2
+      # Run a smoke test to verify deployment
+      curl -I http://localhost | grep "200 OK" || {
+        echo "❌ Smoke test failed"
+        exit 1
+      }
+      echo "✅ Deployment complete."
     displayName: 'Deploy to Linux VM and restart Apache'
+
