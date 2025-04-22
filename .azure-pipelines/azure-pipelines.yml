@@ -108,6 +108,7 @@ steps:
           echo "❌ myapp.zip not found at /tmp/deploy/, creating it now..."
           
           # Create the zip file from the source directory, excluding .git and .zip files
+          echo "check"
           zip -r /tmp/deploy/myapp.zip /var/www/html/ -x "*.git*" "*.zip" || {
             echo "❌ Failed to create myapp.zip"
             exit 1
