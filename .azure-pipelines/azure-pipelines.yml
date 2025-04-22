@@ -107,6 +107,7 @@ steps:
       ls -lh /tmp/deploy
       # Clean existing files and unzip new ones if the file is there
       if [ -f /tmp/deploy/myapp.zip ]; then
+        echo "Found myapp.zip, proceeding with unzipping..."
         sudo rm -rf /var/www/html/*
         unzip -o /tmp/deploy/myapp.zip -d /var/www/html/
       else
@@ -122,4 +123,5 @@ steps:
       }
       echo "✅ Deployment complete."
     displayName: 'Deploy to Linux VM and restart Apache'
+
 
