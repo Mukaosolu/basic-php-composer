@@ -97,29 +97,61 @@ steps:
   # Deploy to Linux VM using SSH
   - task: SSH@0
     inputs:
-     sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
-     runOptions: 'commands'
-     commands: |
-      # Stop Apache
-      sudo systemctl stop apache2
-      # Check if myapp.zip exists
-      echo "Checking contents of /tmp/deploy:"
-      ls -lh /tmp/deploy
-      # Clean existing files and unzip new ones if the file is there
-      if [ -f /tmp/deploy/myapp.zip ]; then
-        echo "Found myapp.zip, proceeding with unzipping..."
-        sudo rm -rf /var/www/html/*
-        unzip -o /tmp/deploy/myapp.zip -d /var/www/html/
-      else
-        echo "❌ myapp.zip not found at /tmp/deploy/"
-        exit 1
-      fi
-      # Restart Apache
-      sudo systemctl start apache2
-      # Run a smoke test to verify deployment
-      curl -I http://localhost | grep "200 OK" || {
-        echo "❌ Smoke test failed"
-        exit 1
-      }
-      echo "✅ Deployment complete."
+      sshEndpoint: 'Linux-vm-ssh'  # The SSH service connection name
+      runOptions: 'commands'
+      commands: |
+        # Ensure /tmp/deploy exists
+        mkdir -p /tmp/deploy
+        
+        # Check if myapp.zip exists, create it if not
+        if [ ! -f /tmp/deploy/myapp.zip ]; then
+          echo "❌ myapp.zip not found at /tmp/deploy/, creating it now..."
+          
+          # Create the zip file from the source directory, excluding .git and .zip files
+          zip -r /tmp/deploy/myapp.zip /var/www/html/ -x "*.git*" "*.zip" || {
+            echo "❌ Failed to create myapp.zip"
+            exit 1
+          }
+        fi
+        
+        # Clean existing files and unzip new ones if myapp.zip exists
+        if [ -f /tmp/deploy/myapp.zip ]; then
+          echo "Found myapp.zip, proceeding with unzipping..."
+          
+          # Ensure /var/www/html exists
+          if [ ! -d /var/www/html ]; then
+            echo "❌ Directory /var/www/html does not exist. Exiting."
+            exit 1
+          fi
+          
+          # Remove existing files and unzip the new files
+          sudo rm -rf /var/www/html/* || {
+            echo "❌ Failed to remove files in /var/www/html"
+            exit 1
+          }
+          
+          unzip -o /tmp/deploy/myapp.zip -d /var/www/html/ || {
+            echo "❌ Unzip failed"
+            exit 1
+          }
+          
+          echo "✅ Unzip completed successfully."
+        else
+          echo "❌ myapp.zip still not found at /tmp/deploy/"
+          exit 1
+        fi
+        
+        # Restart Apache after deployment
+        sudo systemctl start apache2 || {
+          echo "❌ Failed to restart Apache"
+          exit 1
+        }
+
+        # Run a smoke test to verify deployment
+        curl -I http://localhost | grep "200 OK" || {
+          echo "❌ Smoke test failed"
+          exit 1
+        }
+
+        echo "✅ Deployment complete."
     displayName: 'Deploy to Linux VM and restart Apache'
