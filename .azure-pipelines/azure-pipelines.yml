@@ -70,11 +70,11 @@ steps:
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
 
-  # Check downloaded build artifacts
-  - script: |
-      echo "Checking downloaded artifacts..."
-      dir $(Pipeline.Workspace)/drop
-    displayName: 'Check downloaded artifacts'
+ # Check downloaded build artifacts
+- script: |
+    echo "Checking downloaded artifacts..."
+    dir "$(Pipeline.Workspace)\drop"
+  displayName: 'Check downloaded artifacts'
 
   # Upload build artifacts to the IIS server
   - task: CopyFilesOverSSH@0
