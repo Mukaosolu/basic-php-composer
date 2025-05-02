@@ -70,8 +70,8 @@ steps:
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
 
- # Check downloaded build artifacts
-- script: |
+  # Check downloaded build artifacts
+  - script: |
     echo "Checking downloaded artifacts..."
     dir "$(Pipeline.Workspace)\drop"
   displayName: 'Check downloaded artifacts'
