@@ -10,14 +10,19 @@ variables:
   phpVersion: '8.2'
 
 steps:
+  # Checkout the code from the repository
   - checkout: self
 
-  # Install PHP 8.2 and required extensions (for Windows IIS)
+  # Install PHP 8.2 using Chocolatey (Elevated command using batch script)
   - script: |
-      choco install php --version 8.2
-      choco install php-pear
+      echo Running install-php.bat script with admin privileges...
+      call $(Build.SourcesDirectory)\install-php.bat
+    displayName: 'Install PHP 8.2 using Chocolatey with admin privileges'
+
+  # Verify PHP installation
+  - script: |
       php -v
-    displayName: 'Install PHP 8.2 on Windows'
+    displayName: 'Verify PHP 8.2 Installation'
 
   # Install Composer (Windows version)
   - script: |
@@ -89,31 +94,8 @@ steps:
         dir C:\\inetpub\\wwwroot\\MyWebApp
     displayName: 'Verify files on IIS server'
 
-  # Run the deploy.bat script to deploy the app and restart IIS
+  # Run the deploy.bat script to deploy the app
   - script: |
-      echo Stopping IIS...
-      iisreset /stop
-
-      echo Checking contents of C:\inetpub\wwwroot\MyWebApp:
-      dir C:\inetpub\wwwroot\MyWebApp
-
-      echo Deploying the app...
-      if exist "C:\inetpub\wwwroot\MyWebApp\myapp.zip" (
-        echo ✅ Found myapp.zip, proceeding with deployment...
-        "C:\Program Files\7-Zip\7z.exe" x "C:\inetpub\wwwroot\MyWebApp\myapp.zip" -oC:\inetpub\wwwroot\MyWebApp
-      ) else (
-        echo ❌ myapp.zip not found
-        exit /b 1
-      )
-
-      echo Starting IIS...
-      iisreset /start
-
-      echo Running smoke test...
-      curl -s -o nul -w "%{http_code}" http://localhost | findstr /C:"200" || (
-        echo ❌ Smoke test failed
-        exit /b 1
-      )
-
-      echo ✅ Deployment complete.
-    displayName: 'Deploy to IIS and restart services'
+      echo Running deploy.bat...
+      call $(Pipeline.Workspace)/drop/deploy.bat
+    displayName: 'Run deployment script'
