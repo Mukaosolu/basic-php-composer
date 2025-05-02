@@ -21,9 +21,14 @@ steps:
 
   # Install Composer (Windows version)
   - script: |
-      curl -sS https://getcomposer.org/installer | cmd.exe /C "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\""
-      cmd.exe /C "php composer-setup.php"
-      cmd.exe /C "php -r \"unlink('composer-setup.php');\""
+      REM Download Composer installer
+      curl -sS https://getcomposer.org/installer -o composer-setup.php
+
+      REM Install Composer
+      php composer-setup.php
+      php -r "unlink('composer-setup.php');"  # Clean up installer
+
+      REM Verify Composer installation
       php composer.phar --version
     displayName: 'Install Composer'
 
@@ -40,10 +45,11 @@ steps:
   # Package app and deployment script
   - script: |
       REM Create a zip file of the app excluding git and existing zip files
-      powershell Compress-Archive -Path * -Exclude *.git*, *.zip* -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
+      zip -r myapp.zip . -x "*.git*" "*.zip"
+      mv myapp.zip $(Build.ArtifactStagingDirectory)/
 
       REM Include the deploy script
-      copy deploy-Windows.bat $(Build.ArtifactStagingDirectory)/
+      cp deploy-Windows.bat $(Build.ArtifactStagingDirectory)/
     displayName: 'Package app and deploy script'
 
   # Check contents of Artifact Staging Directory
