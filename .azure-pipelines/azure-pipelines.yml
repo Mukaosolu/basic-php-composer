@@ -22,32 +22,36 @@ steps:
 
   # Install Composer (Windows version)
   - script: |
-      curl -sS https://getcomposer.org/installer | cmd.exe /C "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\""
-      cmd.exe /C "php composer-setup.php"
-      cmd.exe /C "php -r \"unlink('composer-setup.php');\""
+      echo "Installing Composer..."
+      php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+      php composer-setup.php
+      php -r "unlink('composer-setup.php');"
       php composer.phar --version
     displayName: 'Install Composer'
 
   # Install Composer dependencies using PHP 8.2
   - script: |
+      echo "Installing Composer dependencies..."
       php composer.phar install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
   # Run PHPUnit tests
   - script: |
+      echo "Running PHPUnit tests..."
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
   # Package app and deployment script
   - script: |
-      # Create a zip file of the app excluding git and existing zip files
+      echo "Creating zip of app..."
       powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
-      # Include the deploy script
+      echo "Copying deploy script..."
       copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
     displayName: 'Package app and deploy script'
 
   # Check contents of Artifact Staging Directory
   - script: |
+      echo "Checking contents of Artifact Staging Directory..."
       dir $(Build.ArtifactStagingDirectory)
     displayName: 'Check contents of Artifact Staging Directory'
 
@@ -68,6 +72,7 @@ steps:
 
   # Check downloaded build artifacts
   - script: |
+      echo "Checking downloaded artifacts..."
       dir $(Pipeline.Workspace)/drop
     displayName: 'Check downloaded artifacts'
 
