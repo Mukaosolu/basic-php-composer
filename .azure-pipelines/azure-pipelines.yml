@@ -5,6 +5,8 @@ trigger:
 
 pool:
   name: IISAgentPool  # Use the agent pool for IIS machines
+  demands:
+    - agent.os -equals Windows_NT  # Ensure the agent is running on Windows
 
 variables:
   phpVersion: '8.2'
@@ -13,16 +15,10 @@ steps:
   # Checkout the code from the repository
   - checkout: self
 
-  # Install PHP 8.2 using Chocolatey (with admin privileges via runas)
-  - script: |
-      echo Running install-php.bat script with admin privileges...
-      runas /user:Administrator "cmd /C $(Build.SourcesDirectory)\install-php.bat"
-    displayName: 'Install PHP 8.2 using Chocolatey with admin privileges'
-
-  # Verify PHP installation
+  # Verify PHP installation (assuming PHP is installed manually)
   - script: |
       php -v
-    displayName: 'Verify PHP 8.2 Installation'
+    displayName: 'Verify PHP Installation'
 
   # Install Composer (Windows version)
   - script: |
