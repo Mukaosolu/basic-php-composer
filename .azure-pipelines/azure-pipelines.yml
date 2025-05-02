@@ -13,10 +13,10 @@ steps:
   # Checkout the code from the repository
   - checkout: self
 
-  # Install PHP 8.2 using Chocolatey (Elevated command using batch script)
+  # Install PHP 8.2 using Chocolatey (with admin privileges via runas)
   - script: |
       echo Running install-php.bat script with admin privileges...
-      call $(Build.SourcesDirectory)\install-php.bat
+      runas /user:Administrator "cmd /C $(Build.SourcesDirectory)\install-php.bat"
     displayName: 'Install PHP 8.2 using Chocolatey with admin privileges'
 
   # Verify PHP installation
