@@ -42,14 +42,18 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # Package app and deployment script
+  # Package app and deployment script (Using 7-Zip or tar)
   - script: |
-      REM Create a zip file of the app excluding git and existing zip files
-      zip -r myapp.zip . -x "*.git*" "*.zip"
-      mv myapp.zip $(Build.ArtifactStagingDirectory)/
-
+      REM Check if 7-Zip is installed
+      if exist "C:\Program Files\7-Zip\7z.exe" (
+        REM Create a zip file using 7-Zip
+        "C:\Program Files\7-Zip\7z.exe" a -tzip $(Build.ArtifactStagingDirectory)\myapp.zip *
+      ) else (
+        REM Create a zip file using tar (alternative if 7-Zip isn't available)
+        tar -a -f $(Build.ArtifactStagingDirectory)\myapp.zip *
+      )
       REM Include the deploy script
-      cp deploy-Windows.bat $(Build.ArtifactStagingDirectory)/
+      copy deploy-Windows.bat $(Build.ArtifactStagingDirectory)/
     displayName: 'Package app and deploy script'
 
   # Check contents of Artifact Staging Directory
