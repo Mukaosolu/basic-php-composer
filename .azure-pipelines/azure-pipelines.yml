@@ -52,7 +52,7 @@ steps:
   # Check contents of Artifact Staging Directory
   - script: |
       echo "Checking contents of Artifact Staging Directory..."
-      dir $(Build.ArtifactStagingDirectory)
+      dir "$(Build.ArtifactStagingDirectory)"
     displayName: 'Check contents of Artifact Staging Directory'
 
   # Publish build artifacts
@@ -72,9 +72,9 @@ steps:
 
   # Check downloaded build artifacts
   - script: |
-    echo "Checking downloaded artifacts..."
-    dir "$(Pipeline.Workspace)\drop"
-  displayName: 'Check downloaded artifacts'
+      echo "Checking downloaded artifacts..."
+      dir "$(Pipeline.Workspace)\drop"
+    displayName: 'Check downloaded artifacts'
 
   # Upload build artifacts to the IIS server
   - task: CopyFilesOverSSH@0
@@ -97,6 +97,6 @@ steps:
 
   # Run the deploy.bat script to deploy the app
   - script: |
-      echo Running deploy.bat...
+      echo "Running deploy.bat..."
       call $(Pipeline.Workspace)/drop/deploy.bat
     displayName: 'Run deployment script'
