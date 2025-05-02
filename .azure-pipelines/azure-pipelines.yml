@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: IISAgentPool  # Use the agent pool for IIS machines
+  name: BuildAgents
 
 variables:
   phpVersion: '8.2'
@@ -12,24 +12,28 @@ variables:
 steps:
   - checkout: self
 
-  # Install PHP 8.2 and required extensions (for Windows IIS)
+  # Install PHP 8.2 and required extensions
   - script: |
-      choco install php --version 8.2
-      choco install php-pear
+      sudo add-apt-repository ppa:ondrej/php -y
+      sudo apt-get update
+      sudo apt-get install -y php8.2 php8.2-cli php8.2-mbstring php8.2-xml php8.2-zip php8.2-bcmath php8.2-intl php8.2-curl
+      sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 100
+      sudo update-alternatives --install /usr/bin/php-config php-config /usr/bin/php-config8.2 100
+      sudo update-alternatives --install /usr/bin/phpize phpize /usr/bin/phpize8.2 100
       php -v
-    displayName: 'Install PHP 8.2 on Windows'
+    displayName: 'Install and switch to PHP 8.2'
 
-  # Install Composer (Windows version)
+  # Install Composer
   - script: |
-      curl -sS https://getcomposer.org/installer | cmd.exe /C "php -r \"copy('https://getcomposer.org/installer', 'composer-setup.php');\""
-      cmd.exe /C "php composer-setup.php"
-      cmd.exe /C "php -r \"unlink('composer-setup.php');\""
-      php composer.phar --version
+      curl -sS https://getcomposer.org/installer | php
+      sudo mv composer.phar /usr/local/bin/composer
+      php /usr/local/bin/composer --version
     displayName: 'Install Composer'
 
   # Install Composer dependencies using PHP 8.2
   - script: |
-      php composer.phar install --no-interaction --prefer-dist
+      php -v
+      php /usr/local/bin/composer install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
   # Run PHPUnit tests
@@ -43,12 +47,12 @@ steps:
       zip -r myapp.zip . -x "*.git*" "*.zip"
       mv myapp.zip $(Build.ArtifactStagingDirectory)/
       # Include the deploy script
-      cp deploy-Windows.bat $(Build.ArtifactStagingDirectory)/
+      cp deploy-Linux.sh $(Build.ArtifactStagingDirectory)/
     displayName: 'Package app and deploy script'
 
   # Check contents of Artifact Staging Directory
   - script: |
-      dir $(Build.ArtifactStagingDirectory)
+      ls -lh $(Build.ArtifactStagingDirectory)
     displayName: 'Check contents of Artifact Staging Directory'
 
   # Publish build artifacts
@@ -68,53 +72,57 @@ steps:
 
   # Check downloaded build artifacts
   - script: |
-      dir $(Pipeline.Workspace)/drop
+      ls -lh $(Pipeline.Workspace)/drop
     displayName: 'Check downloaded artifacts'
 
-  # Upload build artifacts to the IIS server
+  # Upload build artifacts to the Linux VM
   - task: CopyFilesOverSSH@0
     inputs:
-      sshEndpoint: 'IIS-vm-ssh'  # This should be your Windows IIS endpoint
+      sshEndpoint: 'Linux-vm-ssh'
       sourceFolder: '$(Pipeline.Workspace)/drop'
       contents: '**'
-      targetFolder: 'C:\\inetpub\\wwwroot\\MyWebApp'  # IIS root directory
-    displayName: 'Copy build artifacts to IIS'
+      targetFolder: '/tmp/deploy'
+    displayName: 'Copy build artifacts to Linux VM'
 
-  # Verify files on the IIS server
+  # Verify files on the Linux VM
   - task: SSH@0
     inputs:
-      sshEndpoint: 'IIS-vm-ssh'
+      sshEndpoint: 'Linux-vm-ssh'
       runOptions: 'inline'
       inline: |
-        echo "Checking contents of C:\\inetpub\\wwwroot\\MyWebApp:"
-        dir C:\\inetpub\\wwwroot\\MyWebApp
-    displayName: 'Verify files on IIS server'
+        echo "Checking contents of /tmp/deploy:"
+        ls -lh /tmp/deploy
+    displayName: 'Verify files on Linux VM'
 
-  # Batch script for stopping IIS, deploying, and restarting IIS
-  - script: |
-      echo Stopping IIS...
-      iisreset /stop
+  - task: SSH@0
+    inputs:
+      sshEndpoint: 'Linux-vm-ssh'
+      runOptions: 'inline'
+      inline: |
+        echo "Stopping Apache..."
+        sudo systemctl stop apache2
 
-      echo Checking contents of C:\inetpub\wwwroot\MyWebApp:
-      dir C:\inetpub\wwwroot\MyWebApp
+        echo "Checking contents of /tmp/deploy:"
+        ls -lh /tmp/deploy
 
-      echo Deploying the app...
-      if exist "C:\inetpub\wwwroot\MyWebApp\myapp.zip" (
-        echo ✅ Found myapp.zip, proceeding with deployment...
-        "C:\Program Files\7-Zip\7z.exe" x "C:\inetpub\wwwroot\MyWebApp\myapp.zip" -oC:\inetpub\wwwroot\MyWebApp
-      ) else (
-        echo ❌ myapp.zip not found
-        exit /b 1
-      )
+        echo "Checking if myapp.zip exists..."
+        if [ -f /tmp/deploy/myapp.zip ]; then
+          echo "✅ Found myapp.zip, proceeding with deployment..."
+          sudo rm -rf /var/www/html/*
+          sudo unzip -o /tmp/deploy/myapp.zip -d /var/www/html/
+        else
+          echo "❌ myapp.zip not found at /tmp/deploy/"
+          exit 1
+        fi
 
-      echo Starting IIS...
-      iisreset /start
+        echo "Starting Apache..."
+        sudo systemctl start apache2
 
-      echo Running smoke test...
-      curl -s -o nul -w "%{http_code}" http://localhost | findstr /C:"200" || (
-        echo ❌ Smoke test failed
-        exit /b 1
-      )
+        echo "Running smoke test..."
+        curl -s -o /dev/null -w "%{http_code}" http://localhost | grep "200" || {
+        echo "❌ Smoke test failed"
+        exit 1
+        }
 
-      echo ✅ Deployment complete.
-    displayName: 'Deploy to IIS and restart services'
+        echo "✅ Deployment complete."
+    displayName: 'Deploy to Linux VM and restart Apache'
