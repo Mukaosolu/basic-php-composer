@@ -1,23 +1,26 @@
-trigger: 
+trigger:
   branches:
     include:
       - main
 
 pool:
-  name: IISAgentPool
+  name: IISAgentPool  # Use the agent pool for IIS machines
   demands:
-    - agent.os -equals Windows_NT
+    - agent.os -equals Windows_NT  # Ensure the agent is running on Windows
 
 variables:
   phpVersion: '8.2'
 
 steps:
+  # Checkout the code from the repository
   - checkout: self
 
+  # Verify PHP installation (assuming PHP is installed manually)
   - script: |
       php -v
     displayName: 'Verify PHP Installation'
 
+  # Install Composer (Windows version)
   - script: |
       echo "Installing Composer..."
       php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -26,11 +29,19 @@ steps:
       php composer.phar --version
     displayName: 'Install Composer'
 
+  # Install Composer dependencies using PHP 8.2
   - script: |
       echo "Installing Composer dependencies..."
       php composer.phar install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
+  # Run PHPUnit tests
+  - script: |
+      echo "Running PHPUnit tests..."
+      ./vendor/bin/phpunit --configuration phpunit.xml
+    displayName: 'Run PHPUnit tests'
+
+  # Package app and deployment script
   - script: |
       echo "Creating zip of app..."
       powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
@@ -38,64 +49,46 @@ steps:
       copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
     displayName: 'Package app and deploy script'
 
+  # Check contents of Artifact Staging Directory
   - script: |
-      echo "Checking contents of Artifact Staging Directory before publishing..."
+      echo "Checking contents of Artifact Staging Directory..."
       dir "$(Build.ArtifactStagingDirectory)"
-    displayName: 'Check contents of Artifact Staging Directory before publishing'
+    displayName: 'Check contents of Artifact Staging Directory'
 
+  # Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
-      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'  # Ensure all files are included in the artifact
       ArtifactName: 'drop'
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
 
+  # Download build artifact for deployment
   - task: DownloadPipelineArtifact@2
     inputs:
       artifactName: 'drop'
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
 
+  # Check downloaded build artifacts
   - script: |
       echo "Checking downloaded artifacts..."
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Updated CMD step for deployment with correct path resolution
+  # Run deploy.bat script to deploy app to IIS
   - task: CmdLine@2
-    displayName: 'Copy build artifacts to IIS and restart IIS'
+    displayName: 'Run deploy.bat script'
     inputs:
       script: |
-        echo 📁 Copying files to IIS web root...
-        set source=%Pipeline.Workspace%\drop
-        set destination=C:\inetpub\wwwroot\MyWebApp
-
-        echo 🔍 Source: %source%
-        echo 🔍 Destination: %destination%
-
-        if not exist "%source%" (
-            echo ❌ Source path does not exist: %source%
+        echo 📁 Running deploy.bat script...
+        cd "$(Pipeline.Workspace)\drop"
+        
+        # Make sure deploy.bat is in the directory
+        if exist "deploy.bat" (
+            echo ✅ deploy.bat found.
+            call deploy.bat
+        ) else (
+            echo ❌ deploy.bat not found.
             exit /b 1
         )
-
-        if exist "%destination%" (
-            echo 🧹 Cleaning existing files...
-            del /q /f "%destination%\*"
-        ) else (
-            echo 📂 Creating destination folder...
-            mkdir "%destination%"
-        )
-
-        echo 📦 Copying files...
-        xcopy /E /I /H /Y "%source%\*" "%destination%"
-        echo ✅ Files copied successfully.
-
-        echo 🔄 Restarting IIS...
-        net stop W3SVC
-        net start W3SVC
-        echo ✅ IIS restarted successfully.
-
-  - script: |
-      echo "Running deploy.bat..."
-      call $(Pipeline.Workspace)\drop\deploy.bat
-    displayName: 'Run deployment script'
