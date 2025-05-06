@@ -1,65 +1,106 @@
 trigger:
-- main  # Or your branch name
+  branches:
+    include:
+      - main
 
+# Ensure the correct agent pool and agent are used
 pool:
-  vmImage: 'windows-latest'  # For the build stage
+  name: IISAgentPool  # Ensure this pool exists in Azure DevOps
+  demands:
+    - agent.name -equals iis-agent-01  # This ensures we're using the right agent
+    - agent.os -equals Windows_NT      # Must run on Windows
 
 variables:
-  solution: '**/*.php'
-  buildDir: '$(Build.ArtifactStagingDirectory)/drop'
+  phpVersion: '8.2'
 
-stages:
-- stage: Build
-  displayName: 'Build and Package'
-  jobs:
-  - job: Build
-    steps:
-    - task: UseDotNet@2  # If needed for dependencies; skip for pure PHP
-      inputs:
-        packageType: 'sdk'
-        version: '6.x.x'
-        installationPath: $(Agent.ToolsDirectory)/dotnet
+steps:
+  # Checkout the code from the repository
+  - checkout: self
 
-    - script: |
-        echo 🧰 Creating build directory...
-        mkdir $(buildDir)
-        echo 📁 Copying files...
-        xcopy /s /y "$(Build.SourcesDirectory)\*" "$(buildDir)\"
-      displayName: 'Copy source files'
+  # Verify PHP installation (assuming PHP is installed manually)
+  - script: |
+      php -v
+    displayName: 'Verify PHP Installation'
 
-    - task: ArchiveFiles@2
-      inputs:
-        rootFolderOrFile: '$(buildDir)'
-        includeRootFolder: false
-        archiveType: 'zip'
-        archiveFile: '$(buildDir)/myapp.zip'
-        replaceExistingArchive: true
-      displayName: 'Create ZIP file'
+  # Install Composer (Windows version)
+  - script: |
+      echo "Installing Composer..."
+      php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+      php composer-setup.php
+      php -r "unlink('composer-setup.php');"
+      php composer.phar --version
+    displayName: 'Install Composer'
 
-    - publish: $(buildDir)
-      artifact: drop
-      displayName: 'Publish Artifact'
+  # Install Composer dependencies
+  - script: |
+      echo "Installing Composer dependencies..."
+      php composer.phar install --no-interaction --prefer-dist
+    displayName: 'Install Composer dependencies'
 
-- stage: Deploy
-  displayName: 'Deploy to IIS'
-  dependsOn: Build
-  jobs:
-  - deployment: DeployToIIS
-    environment: 'iis-env'  # Optional: use for environment approvals
-    pool:
-      name: IISAgentPool  # Your custom pool name
-      demands:
-        - agent.name -equals iis-agent-01  # Your specific agent
+  # Run PHPUnit tests
+  - script: |
+      echo "Running PHPUnit tests..."
+      ./vendor/bin/phpunit --configuration phpunit.xml
+    displayName: 'Run PHPUnit tests'
 
-    strategy:
-      runOnce:
-        deploy:
-          steps:
-          - download: current
-            artifact: drop
+  # Create zip and copy deploy script
+  - script: |
+      echo "Creating zip of app..."
+      powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
+      echo "Copying deploy script..."
+      copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
+    displayName: 'Package app and deploy script'
 
-          - script: |
-              echo 📁 Running deploy.bat script...
-              call "$(Pipeline.Workspace)\drop\deploy.bat"
-            workingDirectory: $(Pipeline.Workspace)\drop
-            displayName: 'Run deploy.bat script'
+  # Validate staging contents
+  - script: |
+      echo "Checking contents of Artifact Staging Directory..."
+      dir "$(Build.ArtifactStagingDirectory)"
+    displayName: 'Check contents of Artifact Staging Directory'
+
+  # Publish build artifacts
+  - task: PublishBuildArtifacts@1
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+      ArtifactName: 'drop'
+      publishLocation: 'Container'
+    displayName: 'Publish build artifacts'
+
+  # Download build artifact to agent
+  - task: DownloadPipelineArtifact@2
+    inputs:
+      artifactName: 'drop'
+      targetPath: '$(Pipeline.Workspace)/drop'
+    displayName: 'Download Build Artifact'
+
+  # Verify artifact download
+  - script: |
+      echo "Checking downloaded artifacts..."
+      dir "$(Pipeline.Workspace)\drop"
+    displayName: 'Check downloaded artifacts'
+
+  # Ensure deploy.bat and myapp.zip exist, then deploy
+  - task: CmdLine@2
+    displayName: 'Run deploy.bat script'
+    inputs:
+      script: |
+        echo 📁 Running deploy.bat script...
+        cd "$(Pipeline.Workspace)\drop"
+
+        if exist "deploy.bat" (
+            echo ✅ deploy.bat found.
+        ) else (
+            echo ❌ deploy.bat not found.
+            exit /b 1
+        )
+
+        if exist "myapp.zip" (
+            echo ✅ myapp.zip found.
+        ) else (
+            echo ❌ myapp.zip not found.
+            exit /b 1
+        )
+
+        REM Ensure running as Administrator (informational)
+        echo ℹ️ Make sure the agent is running with Administrator privileges.
+
+        call deploy.bat
