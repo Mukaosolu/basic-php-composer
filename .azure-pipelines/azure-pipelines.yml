@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: IISAgentPool  # Your self-hosted agent pool
+  name: IISAgentPool
   demands:
     - agent.os -equals Windows_NT
 
@@ -61,20 +61,31 @@ steps:
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Copy files to IIS web root directly (since this runs on the IIS server)
-  - script: |
-      echo "Copying files to IIS web root..."
-      $source = "$(Pipeline.Workspace)\drop"
-      $destination = "C:\inetpub\wwwroot\MyWebApp"
-      if (Test-Path $destination) {
-          Remove-Item -Recurse -Force $destination\*
-      } else {
-          New-Item -ItemType Directory -Force -Path $destination
-      }
-      Copy-Item "$source\*" -Destination $destination -Recurse -Force
-    displayName: 'Copy build artifacts to IIS'
+  # ✅ Updated task: copy and restart IIS
+  - task: PowerShell@2
+    displayName: 'Copy build artifacts to IIS and restart IIS'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Write-Host "📁 Copying files to IIS web root..."
+        $source = "$(Pipeline.Workspace)\drop"
+        $destination = "C:\inetpub\wwwroot\MyWebApp"
 
-  # ✅ Run the deploy script locally on the server
+        if (Test-Path $destination) {
+            Write-Host "Cleaning existing files..."
+            Remove-Item -Recurse -Force "$destination\*"
+        } else {
+            Write-Host "Creating destination folder..."
+            New-Item -ItemType Directory -Force -Path $destination
+        }
+
+        Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
+        Write-Host "✅ Files copied successfully."
+
+        Write-Host "🔄 Restarting IIS..."
+        Restart-Service -Name 'W3SVC' -Force
+        Write-Host "✅ IIS restarted successfully."
+
   - script: |
       echo "Running deploy.bat..."
       call $(Pipeline.Workspace)\drop\deploy.bat
