@@ -4,6 +4,13 @@ REM This script is for deploying the application to IIS
 echo 🛑 Stopping IIS...
 iisreset /stop
 
+REM Check if MyWebApp folder exists, if not create it
+echo 📁 Checking if MyWebApp directory exists...
+IF NOT EXIST "C:\inetpub\wwwroot\MyWebApp" (
+    echo 📂 Creating MyWebApp directory...
+    mkdir "C:\inetpub\wwwroot\MyWebApp"
+)
+
 echo 🧹 Cleaning old app files...
 rmdir /s /q "C:\inetpub\wwwroot\MyWebApp"
 
@@ -24,3 +31,6 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ✅ Deployment complete.
+
+
+
