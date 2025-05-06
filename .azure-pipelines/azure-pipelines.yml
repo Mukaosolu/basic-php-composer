@@ -39,9 +39,9 @@ steps:
     displayName: 'Package app and deploy script'
 
   - script: |
-      echo "Checking contents of Artifact Staging Directory..."
+      echo "Checking contents of Artifact Staging Directory before publishing..."
       dir "$(Build.ArtifactStagingDirectory)"
-    displayName: 'Check contents of Artifact Staging Directory'
+    displayName: 'Check contents of Artifact Staging Directory before publishing'
 
   - task: PublishBuildArtifacts@1
     inputs:
