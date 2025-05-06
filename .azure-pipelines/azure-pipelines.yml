@@ -61,7 +61,7 @@ steps:
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Updated CMD step for deployment
+  # ✅ Updated CMD step for deployment with correct path resolution
   - task: CmdLine@2
     displayName: 'Copy build artifacts to IIS and restart IIS'
     inputs:
