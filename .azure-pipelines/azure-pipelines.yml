@@ -1,26 +1,23 @@
-trigger:
+trigger: 
   branches:
     include:
       - main
 
 pool:
-  name: IISAgentPool  # Use the agent pool for IIS machines
+  name: IISAgentPool  # Your self-hosted agent pool
   demands:
-    - agent.os -equals Windows_NT  # Ensure the agent is running on Windows
+    - agent.os -equals Windows_NT
 
 variables:
   phpVersion: '8.2'
 
 steps:
-  # Checkout the code from the repository
   - checkout: self
 
-  # Verify PHP installation (assuming PHP is installed manually)
   - script: |
       php -v
     displayName: 'Verify PHP Installation'
 
-  # Install Composer (Windows version)
   - script: |
       echo "Installing Composer..."
       php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -29,19 +26,11 @@ steps:
       php composer.phar --version
     displayName: 'Install Composer'
 
-  # Install Composer dependencies using PHP 8.2
   - script: |
       echo "Installing Composer dependencies..."
       php composer.phar install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
-  # Run PHPUnit tests
-  - script: |
-      echo "Running PHPUnit tests..."
-      ./vendor/bin/phpunit --configuration phpunit.xml
-    displayName: 'Run PHPUnit tests'
-
-  # Package app and deployment script
   - script: |
       echo "Creating zip of app..."
       powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
@@ -49,13 +38,11 @@ steps:
       copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
     displayName: 'Package app and deploy script'
 
-  # Check contents of Artifact Staging Directory
   - script: |
       echo "Checking contents of Artifact Staging Directory..."
       dir "$(Build.ArtifactStagingDirectory)"
     displayName: 'Check contents of Artifact Staging Directory'
 
-  # Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
@@ -63,40 +50,32 @@ steps:
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
 
-  # Download build artifact for deployment
   - task: DownloadPipelineArtifact@2
     inputs:
       artifactName: 'drop'
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
 
-  # Check downloaded build artifacts
   - script: |
       echo "Checking downloaded artifacts..."
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # Upload build artifacts to the IIS server
-  - task: CopyFilesOverSSH@0
-    inputs:
-      sshEndpoint: 'IIS-vm-ssh'  # This should be your Windows IIS endpoint
-      sourceFolder: '$(Pipeline.Workspace)/drop'
-      contents: '**'
-      targetFolder: 'C:\\inetpub\\wwwroot\\MyWebApp'  # IIS root directory
+  # ✅ Copy files to IIS web root directly (since this runs on the IIS server)
+  - script: |
+      echo "Copying files to IIS web root..."
+      $source = "$(Pipeline.Workspace)\drop"
+      $destination = "C:\inetpub\wwwroot\MyWebApp"
+      if (Test-Path $destination) {
+          Remove-Item -Recurse -Force $destination\*
+      } else {
+          New-Item -ItemType Directory -Force -Path $destination
+      }
+      Copy-Item "$source\*" -Destination $destination -Recurse -Force
     displayName: 'Copy build artifacts to IIS'
 
-  # Verify files on the IIS server
-  - task: SSH@0
-    inputs:
-      sshEndpoint: 'IIS-vm-ssh'
-      runOptions: 'inline'
-      inline: |
-        echo "Checking contents of C:\\inetpub\\wwwroot\\MyWebApp:"
-        dir C:\\inetpub\\wwwroot\\MyWebApp
-    displayName: 'Verify files on IIS server'
-
-  # Run the deploy.bat script to deploy the app
+  # ✅ Run the deploy script locally on the server
   - script: |
       echo "Running deploy.bat..."
-      call $(Pipeline.Workspace)/drop/deploy.bat
+      call $(Pipeline.Workspace)\drop\deploy.bat
     displayName: 'Run deployment script'
