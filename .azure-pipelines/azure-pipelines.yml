@@ -61,30 +61,39 @@ steps:
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Updated task: copy and restart IIS
-  - task: PowerShell@2
+  # ✅ Updated CMD step for deployment
+  - task: CmdLine@2
     displayName: 'Copy build artifacts to IIS and restart IIS'
     inputs:
-      targetType: 'inline'
       script: |
-        Write-Host "📁 Copying files to IIS web root..."
-        $source = "$(Pipeline.Workspace)\drop"
-        $destination = "C:\inetpub\wwwroot\MyWebApp"
+        echo 📁 Copying files to IIS web root...
+        set source=%Pipeline.Workspace%\drop
+        set destination=C:\inetpub\wwwroot\MyWebApp
 
-        if (Test-Path $destination) {
-            Write-Host "Cleaning existing files..."
-            Remove-Item -Recurse -Force "$destination\*"
-        } else {
-            Write-Host "Creating destination folder..."
-            New-Item -ItemType Directory -Force -Path $destination
-        }
+        echo 🔍 Source: %source%
+        echo 🔍 Destination: %destination%
 
-        Copy-Item -Path "$source\*" -Destination $destination -Recurse -Force
-        Write-Host "✅ Files copied successfully."
+        if not exist "%source%" (
+            echo ❌ Source path does not exist: %source%
+            exit /b 1
+        )
 
-        Write-Host "🔄 Restarting IIS..."
-        Restart-Service -Name 'W3SVC' -Force
-        Write-Host "✅ IIS restarted successfully."
+        if exist "%destination%" (
+            echo 🧹 Cleaning existing files...
+            del /q /f "%destination%\*"
+        ) else (
+            echo 📂 Creating destination folder...
+            mkdir "%destination%"
+        )
+
+        echo 📦 Copying files...
+        xcopy /E /I /H /Y "%source%\*" "%destination%"
+        echo ✅ Files copied successfully.
+
+        echo 🔄 Restarting IIS...
+        net stop W3SVC
+        net start W3SVC
+        echo ✅ IIS restarted successfully.
 
   - script: |
       echo "Running deploy.bat..."
