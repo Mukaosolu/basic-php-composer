@@ -3,26 +3,21 @@ trigger:
     include:
       - main
 
-# Ensure the correct agent pool and agent are used
 pool:
-  name: IISAgentPool  # Ensure this pool exists in Azure DevOps
+  name: IISAgentPool  # Ensure this pool includes 'iis-agent-01'
   demands:
-    - agent.name -equals iis-agent-01  # This ensures we're using the right agent
-    - agent.os -equals Windows_NT      # Must run on Windows
+    - agent.os -equals Windows_NT
 
 variables:
   phpVersion: '8.2'
 
 steps:
-  # Checkout the code from the repository
   - checkout: self
 
-  # Verify PHP installation (assuming PHP is installed manually)
   - script: |
       php -v
     displayName: 'Verify PHP Installation'
 
-  # Install Composer (Windows version)
   - script: |
       echo "Installing Composer..."
       php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -31,33 +26,31 @@ steps:
       php composer.phar --version
     displayName: 'Install Composer'
 
-  # Install Composer dependencies
   - script: |
       echo "Installing Composer dependencies..."
       php composer.phar install --no-interaction --prefer-dist
     displayName: 'Install Composer dependencies'
 
-  # Run PHPUnit tests
   - script: |
       echo "Running PHPUnit tests..."
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # Create zip and copy deploy script
+  # ✅ Package app and deployment script
   - script: |
       echo "Creating zip of app..."
       powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
+
       echo "Copying deploy script..."
       copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
     displayName: 'Package app and deploy script'
 
-  # Validate staging contents
   - script: |
       echo "Checking contents of Artifact Staging Directory..."
       dir "$(Build.ArtifactStagingDirectory)"
     displayName: 'Check contents of Artifact Staging Directory'
 
-  # Publish build artifacts
+  # ✅ Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
@@ -65,20 +58,19 @@ steps:
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
 
-  # Download build artifact to agent
+  # ✅ Download build artifact for deployment
   - task: DownloadPipelineArtifact@2
     inputs:
       artifactName: 'drop'
       targetPath: '$(Pipeline.Workspace)/drop'
     displayName: 'Download Build Artifact'
 
-  # Verify artifact download
   - script: |
       echo "Checking downloaded artifacts..."
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # Ensure deploy.bat and myapp.zip exist, then deploy
+  # ✅ Run deploy.bat script
   - task: CmdLine@2
     displayName: 'Run deploy.bat script'
     inputs:
@@ -86,6 +78,7 @@ steps:
         echo 📁 Running deploy.bat script...
         cd "$(Pipeline.Workspace)\drop"
 
+        REM Validate existence of deploy.bat and myapp.zip
         if exist "deploy.bat" (
             echo ✅ deploy.bat found.
         ) else (
@@ -99,8 +92,5 @@ steps:
             echo ❌ myapp.zip not found.
             exit /b 1
         )
-
-        REM Ensure running as Administrator (informational)
-        echo ℹ️ Make sure the agent is running with Administrator privileges.
 
         call deploy.bat
