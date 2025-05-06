@@ -19,6 +19,7 @@ echo 📦 Extracting new app files...
 
 echo 🔒 Setting proper permissions...
 icacls "C:\inetpub\wwwroot\MyWebApp" /grant "IIS AppPool\DefaultAppPool:(OI)(CI)F"
+icacls "C:\inetpub\wwwroot\MyWebApp" /grant "iis-agent-01:(OI)(CI)F"  REM Granting permissions for the iis-agent-01
 
 echo 🚀 Starting IIS...
 iisreset /start
@@ -31,6 +32,3 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ✅ Deployment complete.
-
-
-
