@@ -10,6 +10,8 @@ pool:
 
 variables:
   phpVersion: '8.2'
+  targetFolder: 'C:\inetpub\wwwroot\Optimus Apps\MyWebApp'
+  appPoolName: 'MyWebApp'  # Updated with your actual App Pool name
 
 steps:
   - checkout: self
@@ -36,7 +38,7 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # ✅ Package app and deploy script
+  # ✅ Package app
   - script: |
       echo "Creating myapp directory and copying files..."
       mkdir "$(Build.ArtifactStagingDirectory)\myapp"
@@ -47,9 +49,6 @@ steps:
 
       echo "Deleting unzipped myapp directory..."
       rmdir /s /q "$(Build.ArtifactStagingDirectory)\myapp"
-
-      echo "Copying deploy.bat..."
-      copy deploy.bat "$(Build.ArtifactStagingDirectory)\deploy.bat"
 
       echo "Final contents of staging directory:"
       dir "$(Build.ArtifactStagingDirectory)"
@@ -84,11 +83,18 @@ steps:
       dir "$(Pipeline.Workspace)\app"
     displayName: 'Check downloaded artifacts'
 
-  - task: CmdLine@2
-    displayName: 'Run deploy.bat script'
-    inputs:
-      script: |
-        echo 📁 Running deploy.bat script...
-        cd "$(Pipeline.Workspace)\app"
+  # ✅ Direct Deployment to IIS
+  - script: |
+      echo "Unzipping app..."
+      powershell -Command "Expand-Archive -Path '$(Pipeline.Workspace)\app\myapp.zip' -DestinationPath '$(Pipeline.Workspace)\app\unzipped' -Force"
 
-        call deploy.bat
+      echo "Cleaning target IIS folder..."
+      del /q "$(targetFolder)\*" >nul 2>&1
+      for /D %%p in ("$(targetFolder)\*") do rmdir "%%p" /s /q
+
+      echo "Copying app files to IIS folder..."
+      xcopy "$(Pipeline.Workspace)\app\unzipped\*" "$(targetFolder)\" /E /I /Y
+
+      echo "Recycling IIS App Pool..."
+      powershell -Command "Restart-WebAppPool -Name '$(appPoolName)'"
+    displayName: 'Deploy to IIS'
