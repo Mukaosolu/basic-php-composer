@@ -33,7 +33,7 @@ echo 📦 Extracting myapp.zip...
 
 REM Set permissions
 echo 🔒 Setting permissions...
-icacls "%WEBROOT%" /grant "IISAppPool\iis-agent-01:(OI)(CI)F"
+icacls "%WEBROOT%" /grant "IISAppPool\OBNAPPTESTSVR:(OI)(CI)F"
 
 REM Start IIS
 echo 🚀 Starting IIS...
@@ -48,3 +48,4 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ✅ Deployment complete.
+
