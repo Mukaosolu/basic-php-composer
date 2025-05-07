@@ -35,7 +35,7 @@ powershell -Command "Expand-Archive -Path 'myapp.zip' -DestinationPath '%WEBROOT
 
 REM Set permissions
 echo 🔒 Setting permissions...
-icacls "%WEBROOT%" /grant "IIS AppPool\OBNAPPTESTSVR:(OI)(CI)F"
+icacls "%WEBROOT%" /grant "IIS AppPool\MyWebApp:(OI)(CI)F"
 
 REM Start IIS site using PowerShell
 echo 🚀 Starting IIS website...
