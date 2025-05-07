@@ -36,19 +36,15 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # ✅ Package app into myapp directory and zip it
   - script: |
-      echo "Preparing application package..."
+      echo "Creating myapp directory and zipping contents..."
+      mkdir "$(Build.ArtifactStagingDirectory)\myapp"
+      xcopy * "$(Build.ArtifactStagingDirectory)\myapp" /E /I /Y /EXCLUDE:.git,.zip
 
-      mkdir $(Build.ArtifactStagingDirectory)\myapp
-
-      xcopy * $(Build.ArtifactStagingDirectory)\myapp /E /I /Y /EXCLUDE:.git,.zip
-
-      echo "Zipping myapp..."
       powershell Compress-Archive -Path "$(Build.ArtifactStagingDirectory)\myapp\*" -DestinationPath "$(Build.ArtifactStagingDirectory)\myapp.zip"
 
       echo "Copying deploy.bat..."
-      copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
+      copy deploy.bat "$(Build.ArtifactStagingDirectory)\deploy.bat"
     displayName: 'Package myapp and deploy script'
 
   - script: |
@@ -66,12 +62,12 @@ steps:
   - task: DownloadPipelineArtifact@2
     inputs:
       artifactName: 'drop'
-      targetPath: '$(Pipeline.Workspace)/drop'
+      targetPath: '$(Pipeline.Workspace)/app'
     displayName: 'Download Build Artifact'
 
   - script: |
-      echo "Downloaded artifacts:"
-      dir "$(Pipeline.Workspace)\drop"
+      echo "Contents of downloaded artifacts:"
+      dir "$(Pipeline.Workspace)\app"
     displayName: 'Check downloaded artifacts'
 
   - task: CmdLine@2
@@ -79,21 +75,6 @@ steps:
     inputs:
       script: |
         echo 📁 Running deploy.bat script...
-        cd "$(Pipeline.Workspace)\drop"
-
-        REM Validate files
-        if exist "deploy.bat" (
-            echo ✅ deploy.bat found.
-        ) else (
-            echo ❌ deploy.bat not found.
-            exit /b 1
-        )
-
-        if exist "myapp.zip" (
-            echo ✅ myapp.zip found.
-        ) else (
-            echo ❌ myapp.zip not found.
-            exit /b 1
-        )
+        cd "$(Pipeline.Workspace)\app"
 
         call deploy.bat
