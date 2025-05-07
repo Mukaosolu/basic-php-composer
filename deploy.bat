@@ -15,17 +15,19 @@ REM Stop IIS
 echo 🛑 Stopping IIS...
 iisreset /stop
 
-REM Clean and recreate target directory
+REM Define target directory
 set WEBROOT=C:\inetpub\wwwroot\MyWebApp
 
 echo 📁 Checking if %WEBROOT% exists...
-IF EXIST "%WEBROOT%" (
-    echo 🧹 Removing existing %WEBROOT%...
-    rmdir /s /q "%WEBROOT%"
+IF NOT EXIST "%WEBROOT%" (
+    echo ❌ %WEBROOT% does not exist. Exiting...
+    exit /b 1
 )
 
-echo 📂 Creating %WEBROOT%...
-mkdir "%WEBROOT%"
+REM Clean contents of the directory but keep the folder
+echo 🧹 Cleaning contents of %WEBROOT%...
+del /f /q "%WEBROOT%\*" > nul
+for /d %%x in ("%WEBROOT%\*") do rmdir /s /q "%%x"
 
 REM Extract app
 echo 📦 Extracting myapp.zip...
@@ -48,4 +50,3 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo ✅ Deployment complete.
-
