@@ -78,29 +78,21 @@ steps:
     displayName: 'Check downloaded artifacts'
 
   - task: CmdLine@2
-    displayName: 'Deploy to IIS'
+    displayName: 'Deploy to IIS via Staging'
     inputs:
       script: |
-        echo "Unzipping app..."
-        powershell -Command "Expand-Archive -Path '$(Pipeline.Workspace)\app\myapp.zip' -DestinationPath '$(Pipeline.Workspace)\app\unzipped' -Force"
-
+        echo "Setting up staging and target paths..."
+        set stagingFolder=C:\temp\staging\MyWebApp
         set targetFolder="C:\inetpub\wwwroot\Optimus Apps\MyWebApp"
 
-        echo "Cleaning target IIS folder..."
-        del /f /q %targetFolder%\* 2>nul
-        for /D %%p in ("%targetFolder%\*") do rmdir /s /q "%%p" 2>nul
+        echo "Unzipping app to staging folder..."
+        powershell -Command "Expand-Archive -Path '$(Pipeline.Workspace)\app\myapp.zip' -DestinationPath %stagingFolder% -Force"
 
-        echo "Unblocking files and setting permissions..."
-        powershell -Command "Get-ChildItem -Recurse '$(Pipeline.Workspace)\app\unzipped' | Unblock-File"
-        powershell -Command "icacls '$(Pipeline.Workspace)\app\unzipped' /grant *S-1-1-0:(OI)(CI)F /T"
+        echo "Copying from staging to IIS folder..."
+        robocopy %stagingFolder% %targetFolder% /E /MIR
 
-        echo "Removing known problem files if present..."
-        del /f /q "$(Pipeline.Workspace)\app\unzipped\.gitignore" 2>nul
-        del /f /q "$(Pipeline.Workspace)\app\unzipped\.phpunit.result.cache" 2>nul
-        del /f /q "$(Pipeline.Workspace)\app\unzipped\CHANGELOG.md" 2>nul
-
-        echo "Copying app files to IIS folder..."
-        xcopy "$(Pipeline.Workspace)\app\unzipped\*" %targetFolder%\ /E /I /Y /H /C
+        echo "Cleaning up staging folder..."
+        rmdir /s /q %stagingFolder%
 
         echo "Recycling IIS App Pool..."
         powershell -Command "try { Restart-WebAppPool -Name 'MyWebApp' -ErrorAction Stop; Write-Host '✔️ App Pool restarted successfully.' } catch { Write-Error '❌ Failed to restart App Pool'; exit 1 }"
