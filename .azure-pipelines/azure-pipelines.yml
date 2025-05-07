@@ -46,9 +46,6 @@ steps:
 
       echo "Deleting unzipped myapp directory..."
       rmdir /s /q "$(Build.ArtifactStagingDirectory)\myapp"
-
-      echo "Final contents of staging directory:"
-      dir "$(Build.ArtifactStagingDirectory)"
     displayName: 'Package and clean up myapp'
 
   - script: |
@@ -80,7 +77,6 @@ steps:
       dir "$(Pipeline.Workspace)\app"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Updated Deploy to IIS step (no deploy.bat required)
   - task: CmdLine@2
     displayName: 'Deploy to IIS'
     inputs:
@@ -96,6 +92,9 @@ steps:
 
         echo "Removing .gitignore if present..."
         del "$(Pipeline.Workspace)\app\unzipped\.gitignore" 2>nul
+
+        echo "Deleting .phpunit.result.cache if present..."
+        del "$(Pipeline.Workspace)\app\unzipped\.phpunit.result.cache" 2>nul
 
         echo "Copying app files to IIS folder..."
         xcopy "$(Pipeline.Workspace)\app\unzipped\*" %targetFolder%\ /E /I /Y
