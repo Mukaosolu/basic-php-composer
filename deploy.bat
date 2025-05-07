@@ -1,33 +1,47 @@
 @echo off
 REM This script is for deploying the application to IIS
 
+echo Current working directory:
+cd
+
+REM Check for myapp.zip before proceeding
+IF NOT EXIST "myapp.zip" (
+    echo ❌ myapp.zip not found in %cd%
+    dir
+    exit /b 1
+)
+
+REM Stop IIS
 echo 🛑 Stopping IIS...
 iisreset /stop
 
-REM Ensure web root directory exists
-echo 📁 Checking if MyWebApp directory exists...
-IF NOT EXIST "C:\inetpub\wwwroot\MyWebApp" (
-    echo 📂 Creating MyWebApp directory...
-    mkdir "C:\inetpub\wwwroot\MyWebApp"
+REM Clean and recreate target directory
+set WEBROOT=C:\inetpub\wwwroot\MyWebApp
+
+echo 📁 Checking if %WEBROOT% exists...
+IF EXIST "%WEBROOT%" (
+    echo 🧹 Removing existing %WEBROOT%...
+    rmdir /s /q "%WEBROOT%"
 )
 
-echo 🧹 Cleaning old app files...
-rmdir /s /q "C:\inetpub\wwwroot\MyWebApp"
+echo 📂 Creating %WEBROOT%...
+mkdir "%WEBROOT%"
 
-echo 📂 Recreating MyWebApp directory...
-mkdir "C:\inetpub\wwwroot\MyWebApp"
+REM Extract app
+echo 📦 Extracting myapp.zip...
+"C:\Program Files\7-Zip\7z.exe" x "myapp.zip" -o"%WEBROOT%" -y
 
-echo 📦 Extracting new app files...
-"C:\Program Files\7-Zip\7z.exe" x "myapp.zip" -oC:\inetpub\wwwroot\MyWebApp
+REM Set permissions
+echo 🔒 Setting permissions...
+icacls "%WEBROOT%" /grant "IIS AppPool\DefaultAppPool:(OI)(CI)F"
 
-echo 🔒 Setting proper permissions...
-icacls "C:\inetpub\wwwroot\MyWebApp" /grant "IIS AppPool\DefaultAppPool:(OI)(CI)F"
-
+REM Start IIS
 echo 🚀 Starting IIS...
 iisreset /start
 
+REM Smoke test
 echo 🔍 Running smoke test...
-curl -s -o nul -w "%{http_code}" http://localhost | findstr /C:"200" > nul
+curl -s -o nul -w "%%{http_code}" http://localhost | findstr /C:"200" > nul
 if %ERRORLEVEL% neq 0 (
     echo ❌ Smoke test failed
     exit /b 1
