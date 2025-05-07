@@ -10,8 +10,6 @@ pool:
 
 variables:
   phpVersion: '8.2'
-  targetFolder: 'C:\inetpub\wwwroot\Optimus Apps\MyWebApp'
-  appPoolName: 'MyWebApp'  # Updated with your actual App Pool name
 
 steps:
   - checkout: self
@@ -38,7 +36,6 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # ✅ Package app
   - script: |
       echo "Creating myapp directory and copying files..."
       mkdir "$(Build.ArtifactStagingDirectory)\myapp"
@@ -83,18 +80,25 @@ steps:
       dir "$(Pipeline.Workspace)\app"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Direct Deployment to IIS
-  - script: |
-      echo "Unzipping app..."
-      powershell -Command "Expand-Archive -Path '$(Pipeline.Workspace)\app\myapp.zip' -DestinationPath '$(Pipeline.Workspace)\app\unzipped' -Force"
-
-      echo "Cleaning target IIS folder..."
-      del /q "$(targetFolder)\*" >nul 2>&1
-      for /D %%p in ("$(targetFolder)\*") do rmdir "%%p" /s /q
-
-      echo "Copying app files to IIS folder..."
-      xcopy "$(Pipeline.Workspace)\app\unzipped\*" "$(targetFolder)\" /E /I /Y
-
-      echo "Recycling IIS App Pool..."
-      powershell -Command "Restart-WebAppPool -Name '$(appPoolName)'"
+  # ✅ Updated Deploy to IIS step (no deploy.bat required)
+  - task: CmdLine@2
     displayName: 'Deploy to IIS'
+    inputs:
+      script: |
+        echo "Unzipping app..."
+        powershell -Command "Expand-Archive -Path '$(Pipeline.Workspace)\app\myapp.zip' -DestinationPath '$(Pipeline.Workspace)\app\unzipped' -Force"
+
+        set targetFolder="C:\inetpub\wwwroot\Optimus Apps\MyWebApp"
+
+        echo "Cleaning target IIS folder..."
+        del /q %targetFolder%\* 2>nul
+        for /D %%p in ("%targetFolder%\*") do rmdir "%%p" /s /q 2>nul
+
+        echo "Removing .gitignore if present..."
+        del "$(Pipeline.Workspace)\app\unzipped\.gitignore" 2>nul
+
+        echo "Copying app files to IIS folder..."
+        xcopy "$(Pipeline.Workspace)\app\unzipped\*" %targetFolder%\ /E /I /Y
+
+        echo "Recycling IIS App Pool..."
+        powershell -Command "try { Restart-WebAppPool -Name 'MyWebApp' -ErrorAction Stop; Write-Host '✔️ App Pool restarted successfully.' } catch { Write-Error '❌ Failed to restart App Pool'; exit 1 }"
