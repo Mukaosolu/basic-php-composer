@@ -36,6 +36,7 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
+  # ✅ Package app and deploy script
   - script: |
       echo "Creating myapp directory and copying files..."
       mkdir "$(Build.ArtifactStagingDirectory)\myapp"
@@ -44,12 +45,15 @@ steps:
       echo "Zipping myapp directory..."
       powershell Compress-Archive -Path "$(Build.ArtifactStagingDirectory)\myapp\*" -DestinationPath "$(Build.ArtifactStagingDirectory)\myapp.zip"
 
+      echo "Deleting unzipped myapp directory..."
+      rmdir /s /q "$(Build.ArtifactStagingDirectory)\myapp"
+
       echo "Copying deploy.bat..."
       copy deploy.bat "$(Build.ArtifactStagingDirectory)\deploy.bat"
 
-      echo "Contents of staging directory:"
+      echo "Final contents of staging directory:"
       dir "$(Build.ArtifactStagingDirectory)"
-    displayName: 'Package myapp and deploy script'
+    displayName: 'Package and clean up myapp'
 
   - script: |
       echo "Validating myapp.zip creation..."
