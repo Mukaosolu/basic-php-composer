@@ -37,20 +37,30 @@ steps:
     displayName: 'Run PHPUnit tests'
 
   - script: |
-      echo "Creating myapp directory and zipping contents..."
+      echo "Creating myapp directory and copying files..."
       mkdir "$(Build.ArtifactStagingDirectory)\myapp"
-      xcopy * "$(Build.ArtifactStagingDirectory)\myapp" /E /I /Y /EXCLUDE:.git,.zip
+      xcopy * "$(Build.ArtifactStagingDirectory)\myapp" /E /I /Y | more
 
+      echo "Zipping myapp directory..."
       powershell Compress-Archive -Path "$(Build.ArtifactStagingDirectory)\myapp\*" -DestinationPath "$(Build.ArtifactStagingDirectory)\myapp.zip"
 
       echo "Copying deploy.bat..."
       copy deploy.bat "$(Build.ArtifactStagingDirectory)\deploy.bat"
+
+      echo "Contents of staging directory:"
+      dir "$(Build.ArtifactStagingDirectory)"
     displayName: 'Package myapp and deploy script'
 
   - script: |
-      echo "Contents of Artifact Staging Directory:"
-      dir "$(Build.ArtifactStagingDirectory)"
-    displayName: 'Check artifact staging directory'
+      echo "Validating myapp.zip creation..."
+      if exist "$(Build.ArtifactStagingDirectory)\myapp.zip" (
+        echo ✅ myapp.zip exists.
+      ) else (
+        echo ❌ myapp.zip not found!
+        dir "$(Build.ArtifactStagingDirectory)"
+        exit /b 1
+      )
+    displayName: 'Validate myapp.zip exists'
 
   - task: PublishBuildArtifacts@1
     inputs:
@@ -66,7 +76,7 @@ steps:
     displayName: 'Download Build Artifact'
 
   - script: |
-      echo "Contents of downloaded artifacts:"
+      echo "Listing downloaded artifacts:"
       dir "$(Pipeline.Workspace)\app"
     displayName: 'Check downloaded artifacts'
 
