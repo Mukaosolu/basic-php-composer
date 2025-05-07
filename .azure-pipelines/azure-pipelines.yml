@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: IISAgentPool  # Ensure this pool includes 'iis-agent-01'
+  name: IISAgentPool
   demands:
     - agent.os -equals Windows_NT
 
@@ -36,21 +36,26 @@ steps:
       ./vendor/bin/phpunit --configuration phpunit.xml
     displayName: 'Run PHPUnit tests'
 
-  # ✅ Package app and deployment script
+  # ✅ Package app into myapp directory and zip it
   - script: |
-      echo "Creating zip of app..."
-      powershell Compress-Archive -Path * -Exclude *.git*,*.zip -DestinationPath $(Build.ArtifactStagingDirectory)\myapp.zip
+      echo "Preparing application package..."
 
-      echo "Copying deploy script..."
+      mkdir $(Build.ArtifactStagingDirectory)\myapp
+
+      xcopy * $(Build.ArtifactStagingDirectory)\myapp /E /I /Y /EXCLUDE:.git,.zip
+
+      echo "Zipping myapp..."
+      powershell Compress-Archive -Path "$(Build.ArtifactStagingDirectory)\myapp\*" -DestinationPath "$(Build.ArtifactStagingDirectory)\myapp.zip"
+
+      echo "Copying deploy.bat..."
       copy deploy.bat $(Build.ArtifactStagingDirectory)\deploy.bat
-    displayName: 'Package app and deploy script'
+    displayName: 'Package myapp and deploy script'
 
   - script: |
-      echo "Checking contents of Artifact Staging Directory..."
+      echo "Contents of Artifact Staging Directory:"
       dir "$(Build.ArtifactStagingDirectory)"
-    displayName: 'Check contents of Artifact Staging Directory'
+    displayName: 'Check artifact staging directory'
 
-  # ✅ Publish build artifacts
   - task: PublishBuildArtifacts@1
     inputs:
       PathtoPublish: '$(Build.ArtifactStagingDirectory)'
@@ -58,7 +63,6 @@ steps:
       publishLocation: 'Container'
     displayName: 'Publish build artifacts'
 
-  # ✅ Download build artifact for deployment
   - task: DownloadPipelineArtifact@2
     inputs:
       artifactName: 'drop'
@@ -66,11 +70,10 @@ steps:
     displayName: 'Download Build Artifact'
 
   - script: |
-      echo "Checking downloaded artifacts..."
+      echo "Downloaded artifacts:"
       dir "$(Pipeline.Workspace)\drop"
     displayName: 'Check downloaded artifacts'
 
-  # ✅ Run deploy.bat script
   - task: CmdLine@2
     displayName: 'Run deploy.bat script'
     inputs:
@@ -78,7 +81,7 @@ steps:
         echo 📁 Running deploy.bat script...
         cd "$(Pipeline.Workspace)\drop"
 
-        REM Validate existence of deploy.bat and myapp.zip
+        REM Validate files
         if exist "deploy.bat" (
             echo ✅ deploy.bat found.
         ) else (
