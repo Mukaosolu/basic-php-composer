@@ -1,31 +1,50 @@
-# Exit on any error
-$ErrorActionPreference = "Stop"
+@echo off
+REM This script is for deploying the application to IIS
 
-echo "🛑 Stopping IIS..."
+echo Current working directory:
+cd
+
+REM Check for myapp.zip before proceeding
+IF NOT EXIST "myapp.zip" (
+    echo ❌ myapp.zip not found in %cd%
+    dir
+    exit /b 1
+)
+
+REM Stop IIS
+echo 🛑 Stopping IIS...
 iisreset /stop
 
-echo "📦 Extracting new app files without deleting old files..."
-# Update files by extracting over existing files
-Expand-Archive -Path myapp.zip -DestinationPath C:\inetpub\wwwroot\ -Force
+REM Clean and recreate target directory
+set WEBROOT=C:\inetpub\wwwroot\MyWebApp
 
-echo "🔒 Setting proper permissions..."
-$folderPath = "C:\inetpub\wwwroot"
-$acl = Get-Acl $folderPath
-$permission = "IIS AppPool\DefaultAppPool", "Modify", "Allow"
-$rule = New-Object System.Security.AccessControl.FileSystemAccessRule $permission
-$acl.AddAccessRule($rule)
-Set-Acl $folderPath $acl
+echo 📁 Checking if %WEBROOT% exists...
+IF EXIST "%WEBROOT%" (
+    echo 🧹 Removing existing %WEBROOT%...
+    rmdir /s /q "%WEBROOT%"
+)
 
-echo "🚀 Starting IIS..."
+echo 📂 Creating %WEBROOT%...
+mkdir "%WEBROOT%"
+
+REM Extract app
+echo 📦 Extracting myapp.zip...
+"C:\Program Files\7-Zip\7z.exe" x "myapp.zip" -o"%WEBROOT%" -y
+
+REM Set permissions
+echo 🔒 Setting permissions...
+icacls "%WEBROOT%" /grant "IISAppPool\iis-agent-01:(OI)(CI)F"
+
+REM Start IIS
+echo 🚀 Starting IIS...
 iisreset /start
 
-echo "🔍 Running smoke test..."
-$response = Invoke-WebRequest -Uri "http://localhost" -Method Head -UseBasicP
-if ($response.StatusCode -eq 200) {
-    echo "✅ Smoke test passed."
-} else {
-    echo "❌ Smoke test failed"
-    exit 1
-}
+REM Smoke test
+echo 🔍 Running smoke test...
+curl -s -o nul -w "%%{http_code}" http://localhost | findstr /C:"200" > nul
+if %ERRORLEVEL% neq 0 (
+    echo ❌ Smoke test failed
+    exit /b 1
+)
 
-echo "✅ Deployment complete."
+echo ✅ Deployment complete.
