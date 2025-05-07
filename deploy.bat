@@ -11,12 +11,12 @@ IF NOT EXIST "myapp.zip" (
     exit /b 1
 )
 
-REM Stop IIS
-echo 🛑 Stopping IIS...
-iisreset /stop
+REM Stop IIS site using PowerShell
+echo 🛑 Stopping IIS website...
+powershell -Command "Import-Module WebAdministration; Stop-Website -Name 'Default Web Site'"
 
 REM Define target directory
-set WEBROOT=C:\inetpub\wwwroot\MyWebApp
+set "WEBROOT=C:\inetpub\wwwroot\Optimus Apps\MyWebApp"
 
 echo 📁 Checking if %WEBROOT% exists...
 IF NOT EXIST "%WEBROOT%" (
@@ -29,17 +29,17 @@ echo 🧹 Cleaning contents of %WEBROOT%...
 del /f /q "%WEBROOT%\*" > nul
 for /d %%x in ("%WEBROOT%\*") do rmdir /s /q "%%x"
 
-REM Extract app
+REM Extract app using built-in PowerShell
 echo 📦 Extracting myapp.zip...
-"C:\Program Files\7-Zip\7z.exe" x "myapp.zip" -o"%WEBROOT%" -y
+powershell -Command "Expand-Archive -Path 'myapp.zip' -DestinationPath '%WEBROOT%' -Force"
 
 REM Set permissions
 echo 🔒 Setting permissions...
-icacls "%WEBROOT%" /grant "IISAppPool\OBNAPPTESTSVR:(OI)(CI)F"
+icacls "%WEBROOT%" /grant "IIS AppPool\OBNAPPTESTSVR:(OI)(CI)F"
 
-REM Start IIS
-echo 🚀 Starting IIS...
-iisreset /start
+REM Start IIS site using PowerShell
+echo 🚀 Starting IIS website...
+powershell -Command "Import-Module WebAdministration; Start-Website -Name 'Default Web Site'"
 
 REM Smoke test
 echo 🔍 Running smoke test...
