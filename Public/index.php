@@ -1,11 +1,19 @@
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+require __DIR__ . '/../vendor/autoload.php';
 use Carbon\Carbon;
 
+// Default timezone
+$timezone = $_GET['zone'] ?? 'UTC';
 
-printf("Right now in New York is %s.\n", Carbon::now('US/Eastern')->format('Y-m-d g:i:s A'));
+try {
+    $now = Carbon::now($timezone);
+    $tomorrow = Carbon::tomorrow($timezone);
+} catch (Exception $e) {
+    http_response_code(400);
+    echo "Invalid timezone.";
+    exit;
+}
 
-printf("Tomorrow in New York will be %s.\n", Carbon::tomorrow('US/Eastern')->format('Y-m-d'));
-
-printf("Right now in Paris is %s\n", Carbon::now('Europe/Paris'));
+printf("Right now in %s is %s.\n", $timezone, $now->format('Y-m-d g:i:s A'));
+printf("Tomorrow in %s will be %s.\n", $timezone, $tomorrow->format('Y-m-d'));
