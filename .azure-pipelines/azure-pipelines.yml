@@ -95,4 +95,12 @@ steps:
         rmdir /s /q %stagingFolder%
 
         echo "Recycling IIS App Pool..."
-        powershell -Command "try { Restart-WebAppPool -Name 'MyWebApp' -ErrorAction Stop; Write-Host '✔️ App Pool restarted successfully.' } catch { Write-Error '❌ Failed to restart App Pool'; exit 1 }"
+        powershell -NoProfile -Command "
+          Import-Module WebAdministration;
+          try {
+            Restart-WebAppPool -Name 'MyWebApp' -ErrorAction Stop;
+            Write-Host '✔️ App Pool restarted successfully.'
+          } catch {
+            Write-Host '❌ App Pool restart failed: ' \$_.Exception.Message;
+            exit 1
+          }"
