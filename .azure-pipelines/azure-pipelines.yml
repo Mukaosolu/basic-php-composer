@@ -95,7 +95,7 @@ steps:
         rmdir /s /q %stagingFolder%
 
         echo "Recycling IIS App Pool..."
-        %windir%\system32\inetsrv\appcmd recycle apppool /apppool.name:MyWebApp
+        %windir%\system32\inetsrv\appcmd recycle apppool /apppool.name:MyWebApp-pool
 
         if %errorlevel% neq 0 (
           echo ❌ Failed to recycle App Pool
