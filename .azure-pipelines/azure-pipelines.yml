@@ -4,7 +4,7 @@ trigger:
       - main
 
 pool:
-  name: IISAgentPool
+  name: Default
   demands:
     - agent.os -equals Windows_NT
 
